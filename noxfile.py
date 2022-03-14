@@ -1,15 +1,7 @@
 import nox
 import argparse
 from pathlib import Path
-from molting.main import (
-    increase_version_number,
-    update_changelog,
-    update_pyproject,
-    update_init,
-    create_tag,
-    extract_changelog_notes,
-    create_github_release
-)
+from molting.main import Project, increase_version_number
 
 
 @nox.session
@@ -44,17 +36,17 @@ def release(session: nox.Session) -> None:
         )
 
     session.log(f"Bumping the {version_part!r} version")
-    from molting import __version__
 
-    project_directory = Path(__file__).parent
+    project = Project(".")
+    old_version = project.get_version()
 
-    version = increase_version_number(__version__, version_part)
+    version = increase_version_number(old_version, version_part)
 
-    update_changelog(__version__, version, project_directory)
-    update_pyproject(version, project_directory)
-    update_init(version, project_directory)
-    session.log(f"Bumped files from {__version__!r} to {version!r}")
+    project.update_changelog(old_version, version)
+    project.update_pyproject(version)
+    project.update_init(version)
+    session.log(f"Bumped files from {old_version!r} to {version!r}")
     session.log("Pushing the new tag")
-    create_tag(version)
-    notes = extract_changelog_notes(project_directory)
-    create_github_release(version, notes)
+    # create_tag(version)
+    # notes = project.extract_changelog_notes()
+    # create_github_release(version, notes)
