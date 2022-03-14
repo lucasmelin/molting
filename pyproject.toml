@@ -1,9 +1,6 @@
 [tool.poetry]
 name = "molting"
-name = "molt"
-version = "0.1.4"
-description = "Python changelog experiments"
-authors = ["Your Name <you@example.com>"]
+version = "0.1.0"
 description = "Automatically bump your python project files to the latest version."
 authors = ["Lucas Melin <lucas.melin@gmail.com>"]
 license = "MIT"
