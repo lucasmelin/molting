@@ -1,8 +1,11 @@
 [tool.poetry]
+name = "molting"
 name = "molt"
 version = "0.1.4"
 description = "Python changelog experiments"
 authors = ["Your Name <you@example.com>"]
+description = "Automatically bump your python project files to the latest version."
+authors = ["Lucas Melin <lucas.melin@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
@@ -10,7 +13,7 @@ python = "^3.9"
 
 [tool.poetry.dev-dependencies]
 nox = "^2022.1.7"
-bump2version = "^1.0.1"
+pytest = "^7.1.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
