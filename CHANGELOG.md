@@ -14,4 +14,19 @@ Syntax:
 
 ## [Latest Changes]
 
+## [0.1.4] - 2022-03-14
+
+## [0.1.4] - 2022-03-14
+
+## [0.1.4] - 2022-03-14
+
 - Initial project setup
+
+## [0.1.0] - 2022-02-11
+
+- Bla Bla
+
+
+[Latest Changes]: https://github.com/lucasmelin/moltcompare/v0.1.4...HEAD
+[0.1.4]: https://github.com/lucasmelin/moltcompare/v0.1.3...v0.1.4
+[0.1.4]: https://github.com/lucasmelin/moltcompare/v0.1.3...v0.1.4

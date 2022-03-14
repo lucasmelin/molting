@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-REPOSITORY = "https://github.com/lucasmelin/molt"
+REPOSITORY = "https://github.com/lucasmelin/molt/"
 RE_REPOSITORY = re.compile(r'^repository = "(?P<repository>.*)"$', re.MULTILINE)
 RE_PYPROJECT_VERSION = re.compile(r'version = "(?P<version>\d+\.\d+(\.\d+)?)"')
 RE_INIT_VERSION = re.compile(r'__version__ = "(?P<version>\d+\.\d+(\.\d+)?)"')
@@ -47,7 +47,7 @@ def update_init(version_number: str):
     Args:
         version_number (str): New version number
     """
-    init = Path(__file__).parent / "src" / "molt" / "pyproject.toml"
+    init = Path(__file__).parent / "src" / "molt" / "__init__.py"
     file_text = init.read_text()
     new_text = RE_INIT_VERSION.sub(f'__version__ = "{version_number}"', file_text)
     init.write_text(new_text)
@@ -157,8 +157,8 @@ def release(session: nox.Session) -> None:
     version = increase_version_number(__version__, version_part)
 
     update_changelog(__version__, version)
-    update_pyproject(__version__, version)
-    update_init(__version__, version)
+    update_pyproject(version)
+    update_init(version)
     session.log(f"Bumped files from {__version__!r} to {version!r}")
     session.log("Pushing the new tag")
 
