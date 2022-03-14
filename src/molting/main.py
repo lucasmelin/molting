@@ -52,7 +52,9 @@ def update_init(version_number: str, project_directory: Path):
     init.write_text(new_text)
 
 
-def update_changelog(old_version_number: str, version_number: str, project_directory: Path):
+def update_changelog(
+    old_version_number: str, version_number: str, project_directory: Path
+):
     """Update `CHANGELOG.md` for the new version.
 
     Args:
@@ -122,6 +124,8 @@ def increase_version_number(version_number: str, version_part: str) -> str:
 def create_tag(version: str):
     """Create a tag for the specified version.
 
+    Depends on `git`.
+
     Args:
         version (str): Version number to use for the tag
     """
@@ -132,5 +136,58 @@ def create_tag(version: str):
     call("git", "push", "--tags")
 
 
-def create_github_release():
-    pass
+def create_github_release(version: str, notes: str):
+    """Create a new GitHub release.
+
+    Depends on the GitHub CLI.
+
+    Args:
+        version (str): Version tag to release. If a matching git tag does not
+          exist yet, one will automatically be created.
+        notes (str): Release notes.
+    """
+    call(
+        "gh",
+        "release",
+        "create",
+        f"v{version}",
+        "--title",
+        f"v{version}",
+        "--notes",
+        notes,
+    )
+
+
+link_pattern = re.compile(r"^\[(.*)\]: (.*)$")
+
+
+def extract_changelog_notes(project_directory: Path):
+    """Parse the CHANGELOG.md and retun the latest unreleased changes.
+
+    Args:
+        project_directory (Path): Path to the current project
+
+    Returns:
+        str: Description of the changes
+    """
+    changelog = project_directory / "CHANGELOG.md"
+    file_text = changelog.read_text()
+    file_lines = file_text.splitlines()
+    index = [
+        idx
+        for idx, line in enumerate(file_lines)
+        if line.startswith("## [Latest Changes]")
+    ][0]
+    after_latest = file_lines[index + 1 :]
+    latest_changes = []
+    for line in after_latest:
+        if link_pattern.fullmatch(line) is not None:
+            pass
+        elif line.startswith("## ["):
+            # New version, no need to look at the rest of the lines
+            break
+        elif not line.strip():
+            pass
+        else:
+            latest_changes.append(line)
+    return "\n".join(latest_changes)

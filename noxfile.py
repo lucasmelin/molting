@@ -7,6 +7,8 @@ from molting.main import (
     update_pyproject,
     update_init,
     create_tag,
+    extract_changelog_notes,
+    create_github_release
 )
 
 
@@ -53,4 +55,6 @@ def release(session: nox.Session) -> None:
     update_init(version, project_directory)
     session.log(f"Bumped files from {__version__!r} to {version!r}")
     session.log("Pushing the new tag")
-    # create_tag(version)
+    create_tag(version)
+    notes = extract_changelog_notes(project_directory)
+    create_github_release(version, notes)
