@@ -14,4 +14,9 @@ Syntax:
 
 ## [Latest Changes]
 
+## [0.2.0] - 2022-03-15
+
 - Initial project setup
+
+
+[Latest Changes]: https://github.com/lucasmelin/molting/compare/v0.2.0...HEAD
