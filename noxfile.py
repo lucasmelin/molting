@@ -1,7 +1,12 @@
 import nox
 import argparse
 from pathlib import Path
-from molting.main import Project, increase_version_number
+from molting.main import (
+    Project,
+    get_commit_messages,
+    guess_change_type,
+    increase_version_number,
+)
 
 
 @nox.session
@@ -16,12 +21,20 @@ def release(session: nox.Session) -> None:
     parser.add_argument(
         "version",
         type=str,
-        nargs=1,
+        nargs="?",
         help="The type of semver release to make.",
         choices={"major", "minor", "patch"},
     )
     args: argparse.Namespace = parser.parse_args(args=session.posargs)
-    version_part: str = args.version.pop()
+
+    project = Project(".")
+    old_version = project.get_version()
+
+    if args.version:
+        version_part: str = args.version.pop()
+    else:
+        commit_messages = get_commit_messages(old_version)
+        version_part = guess_change_type(commit_messages)
 
     # If we get here, we should be good to go
     # Let's do a final check for safety
@@ -37,9 +50,6 @@ def release(session: nox.Session) -> None:
 
     session.log(f"Bumping the {version_part!r} version")
 
-    project = Project(".")
-    old_version = project.get_version()
-
     version = increase_version_number(old_version, version_part)
 
     project.update_changelog(old_version, version)
@@ -48,5 +58,9 @@ def release(session: nox.Session) -> None:
     session.log(f"Bumped files from {old_version!r} to {version!r}")
     session.log("Pushing the new tag")
     # create_tag(version)
-    # notes = project.extract_changelog_notes()
+    notes = project.extract_changelog_notes()
+    # If empty, try the commit messages
+    if not notes:
+        notes = get_commit_messages(old_version)
+
     # create_github_release(version, notes)

@@ -235,10 +235,18 @@ def get_commit_messages(starting_version: str, ending_version: str = "HEAD"):
 
 def guess_change_type(lines: str) -> str:
     """Guess the change type based on the commit message."""
+    # Default to patch version
     current_guess = "patch"
+    minor_words = ["feat", "change", "improve"]
     for line in lines:
-        if "feat" in line.lower():
+        # If breaking is found, immediately guess major without considering the
+        # rest of the lines
+        if "breaking" in line.lower():
+            return "major"
+
+        # If we come across a minor version word, change our guess
+        if any(minor_word in line.lower() for minor_word in minor_words):
             current_guess = "minor"
-        elif "breaking" in line.lower():
-            current_guess = "major"
+
+    # Will either be patch or minor at this point
     return current_guess
