@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from pathlib import Path
-from subprocess import call
+from subprocess import run
 import glob
 
 RE_REPOSITORY = re.compile(r'^repository = "(?P<repository>.*)"$', re.MULTILINE)
@@ -178,11 +178,11 @@ def create_tag(version: str):
     Args:
         version (str): Version number to use for the tag
     """
-    call("git", "add", ".")
-    call("git", "commit", "-m", f"Bump version to v{version}")
-    call("git", "tag", f"v{version}")
-    call("git", "push")
-    call("git", "push", "--tags")
+    run("git", "add", ".")
+    run("git", "commit", "-m", f"Bump version to v{version}")
+    run("git", "tag", f"v{version}")
+    run("git", "push")
+    run("git", "push", "--tags")
 
 
 def create_github_release(version: str, notes: str):
@@ -195,7 +195,7 @@ def create_github_release(version: str, notes: str):
         exist yet, one will automatically be created.
         notes (str): Release notes.
     """
-    call(
+    run(
         "gh",
         "release",
         "create",
@@ -205,3 +205,40 @@ def create_github_release(version: str, notes: str):
         "--notes",
         notes,
     )
+
+
+def get_commit_messages(starting_version: str, ending_version: str = "HEAD"):
+    """Get the commit messages from the current git branch.
+
+    Depends on `git`.
+
+    Args:
+        starting_version (str): Starting version number, not included in the results
+        ending_version (str): Ending version number, defaults to HEAD
+
+    Returns:
+        list: List of commit message lines
+    """
+    log_lines = run(
+        [
+            "git",
+            "--no-pager",
+            "log",
+            "--format=%B",
+            f"{starting_version}...{ending_version}",
+        ],
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    return [line for line in log_lines if line.strip()]
+
+
+def guess_change_type(lines: str) -> str:
+    """Guess the change type based on the commit message."""
+    current_guess = "patch"
+    for line in lines:
+        if "feat" in line.lower():
+            current_guess = "minor"
+        elif "breaking" in line.lower():
+            current_guess = "major"
+    return current_guess
