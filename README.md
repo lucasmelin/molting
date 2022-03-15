@@ -2,6 +2,12 @@
 
 Automatically bump your project files to the latest version.
 
+![PyPI](https://img.shields.io/pypi/v/molting?color=%2316a34a)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/molting?color=%230fb882)
+[![CI - nox sessions](https://github.com/lucasmelin/molting/actions/workflows/ci.yaml/badge.svg)](https://github.com/lucasmelin/molting/actions/workflows/ci.yaml)
+
+---
+
 ## Overview
 
 Simplifies the process of creating new releases by bumping version numbers, updating release notes, and creating a GitHub release.
