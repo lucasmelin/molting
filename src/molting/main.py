@@ -196,11 +196,11 @@ def create_tag(version: str):
     Args:
         version (str): Version number to use for the tag
     """
-    run("git", "add", ".")
-    run("git", "commit", "-m", f"Bump version to v{version}")
-    run("git", "tag", f"v{version}")
-    run("git", "push")
-    run("git", "push", "--tags")
+    run(["git", "add", "."], text=True)
+    run(["git", "commit", "-m", f"Bump version to v{version}"], text=True)
+    run(["git", "tag", f"v{version}"], text=True)
+    run(["git", "push"], text=True)
+    run(["git", "push", "--tags"], text=True)
 
 
 def create_github_release(version: str, notes: str):
@@ -214,14 +214,17 @@ def create_github_release(version: str, notes: str):
         notes (str): Release notes.
     """
     run(
-        "gh",
-        "release",
-        "create",
-        f"v{version}",
-        "--title",
-        f"v{version}",
-        "--notes",
-        notes,
+        [
+            "gh",
+            "release",
+            "create",
+            f"v{version}",
+            "--title",
+            f"v{version}",
+            "--notes",
+            notes,
+        ],
+        text=True,
     )
 
 
