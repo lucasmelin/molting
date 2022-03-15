@@ -1,6 +1,6 @@
 # 🐍 molting
 
-Automatically bump your python project files to the latest version.
+Automatically bump your project files to the latest version.
 
 ```mermaid
 graph TD

@@ -30,7 +30,10 @@ class Project:
         match = RE_REPOSITORY.search(pyproject.read_text())
         if not match:
             raise ValueError(f"Could not find repository in {pyproject}")
-        return match.group("repository")
+        repository = match.group("repository")
+        if not repository.endswith("/"):
+            repository = f"{repository}/"
+        return repository
 
     def get_version(self) -> str:
         """Parses project version from `pyproject.toml`
@@ -60,6 +63,8 @@ class Project:
         version_number: str,
     ):
         """Update the version found in `__init__.py`.
+
+        Will not add a version string if one doesn't already exist in the file.
 
         Args:
             version_number (str): New version number
@@ -150,8 +155,7 @@ class Project:
         changelog = self.project_directory / "CHANGELOG.md"
         file_text = changelog.read_text()
         file_text = file_text.replace(
-            "## [Latest Changes]",
-            f"## [Latest Changes]\n{notes}"
+            "## [Latest Changes]", f"## [Latest Changes]\n{notes}"
         )
         changelog.write_text(file_text)
 
@@ -235,7 +239,9 @@ def get_commit_messages(starting_version: str, ending_version: str = "HEAD"):
     """
     try:
         # If this executes successfully, then the version exists locally
-        result = run(["git", "rev-parse", starting_version], capture_output=True, check=True)
+        result = run(
+            ["git", "rev-parse", starting_version], capture_output=True, check=True
+        )
         result.check_returncode()
     except CalledProcessError:
         # Couldn't find the starting version, so instead get the initial repo commit
@@ -279,6 +285,16 @@ def guess_change_type(lines: str) -> str:
 
 
 def bump(project_directory: Path, version_part: str = None, dry_run: bool = True):
+    """Bump the project files to the latest version and generate a release.
+
+    Args:
+        project_directory (Path): Project root directory
+        version_part (str, optional): Version to bump, one of `patch`, `minor`
+          or `major`. If not specified, then the commit messages will be parsed
+          in order to formulate a guess.
+        dry_run (bool, optional): Don't make any changes, just print out what
+          would happen. Defaults to True.
+    """
     project = Project(project_directory)
     old_version = project.get_version()
     commit_messages = get_commit_messages(f"v{old_version}")
@@ -303,22 +319,17 @@ def bump(project_directory: Path, version_part: str = None, dry_run: bool = True
         print(f"Bumped files from {old_version!r} to {version!r}")
         print("Pushing the new tag")
         create_tag(version)
-        notes = project.extract_changelog_notes()
-        # If empty, use the commit messages
-        if not notes:
-            notes = "\n - ".join(["", *commit_messages])
-
         create_github_release(version, notes)
 
     else:
         # If empty, use the commit messages
         if not notes:
             notes = "\n - ".join(["", *commit_messages])
-            project.add_changelog_notes(notes)
         print(f"Changelog notes: \n{notes}")
 
 
 def cli():
+    """Handle command-line arguments."""
     parser = argparse.ArgumentParser("Kicks off an automated bump and release process.")
     parser.add_argument(
         "version",
