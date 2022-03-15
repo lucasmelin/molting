@@ -141,6 +141,20 @@ class Project:
                 latest_changes.append(line)
         return "\n".join(latest_changes)
 
+    def add_changelog_notes(self, notes: str):
+        """Add notes to the `Latest Changes` section in CHANGELOG.md
+
+        Args:
+            notes (str): Notes to add
+        """
+        changelog = self.project_directory / "CHANGELOG.md"
+        file_text = changelog.read_text()
+        file_text = file_text.replace(
+            "## [Latest Changes]",
+            f"## [Latest Changes]\n{notes}"
+        )
+        changelog.write_text(file_text)
+
 
 def increase_version_number(version_number: str, version_part: str) -> str:
     """Increment the current version number according to SemVer type.
@@ -276,7 +290,13 @@ def bump(project_directory: Path, version_part: str = None, dry_run: bool = True
 
     print(f"Bumping the {version_part!r} version to {version!r}")
 
+    notes = project.extract_changelog_notes()
+
     if not dry_run:
+        # If empty, use the commit messages
+        if not notes:
+            notes = "\n - ".join(["", *commit_messages])
+            project.add_changelog_notes(notes)
         project.update_changelog(old_version, version)
         project.update_pyproject(version)
         project.update_init(version)
@@ -291,10 +311,10 @@ def bump(project_directory: Path, version_part: str = None, dry_run: bool = True
         create_github_release(version, notes)
 
     else:
-        notes = project.extract_changelog_notes()
         # If empty, use the commit messages
         if not notes:
             notes = "\n - ".join(["", *commit_messages])
+            project.add_changelog_notes(notes)
         print(f"Changelog notes: \n{notes}")
 
 
