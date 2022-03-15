@@ -5,6 +5,9 @@ description = "Automatically bump your python project files to the latest versio
 authors = ["Lucas Melin <lucas.melin@gmail.com>"]
 license = "MIT"
 
+[tool.poetry.scripts]
+molting = "molting.main:cli"
+
 [tool.poetry.dependencies]
 python = "^3.9"
 

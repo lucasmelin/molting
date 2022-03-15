@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from subprocess import run
-import glob
+import argparse
 
 RE_REPOSITORY = re.compile(r'^repository = "(?P<repository>.*)"$', re.MULTILINE)
 RE_PYPROJECT_VERSION = re.compile(r'version = "(?P<version>\d+\.\d+(\.\d+)?)"')
@@ -250,3 +250,61 @@ def guess_change_type(lines: str) -> str:
 
     # Will either be patch or minor at this point
     return current_guess
+
+
+def bump(project_directory: Path, version_part: str = None, dry_run: bool = True):
+    project = Project(project_directory)
+    old_version = project.get_version()
+    commit_messages = get_commit_messages(old_version)
+
+    if not version_part:
+        version_part = guess_change_type(commit_messages)
+
+    version = increase_version_number(old_version, version_part)
+
+    print(f"Bumping the {version_part!r} version to {version!r}")
+
+    if not dry_run:
+        project.update_changelog(old_version, version)
+        project.update_pyproject(version)
+        project.update_init(version)
+        print(f"Bumped files from {old_version!r} to {version!r}")
+        print("Pushing the new tag")
+        create_tag(version)
+        notes = project.extract_changelog_notes()
+        # If empty, use the commit messages
+        if not notes:
+            notes = commit_messages
+
+        create_github_release(version, notes)
+
+    else:
+        notes = project.extract_changelog_notes()
+        # If empty, use the commit messages
+        if not notes:
+            notes = commit_messages
+        print(f"Changelog notes: \n {notes}")
+
+
+def cli():
+    parser = argparse.ArgumentParser("Kicks off an automated bump and release process.")
+    parser.add_argument(
+        "version",
+        type=str,
+        nargs="?",
+        help="The type of semver release to make.",
+        choices={"major", "minor", "patch"},
+    )
+    parser.add_argument("--project-dir", "-d", nargs="?", default=Path("."))
+    parser.add_argument(
+        "--dryrun",
+        dest="dry_run",
+        action="store_true",
+        help="Don't make any changes, just print out what would happen",
+    )
+    args = parser.parse_args()
+    bump(args.project_directory, args.version_part, args.dry_run)
+
+
+if __name__ == "__main__":
+    cli()
