@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from pathlib import Path
-from subprocess import run
+from subprocess import CalledProcessError, run
 import argparse
 
 RE_REPOSITORY = re.compile(r'^repository = "(?P<repository>.*)"$', re.MULTILINE)
@@ -219,6 +219,18 @@ def get_commit_messages(starting_version: str, ending_version: str = "HEAD"):
     Returns:
         list: List of commit message lines
     """
+    try:
+        # If this executes successfully, then the version exists locally
+        result = run(["git", "rev-parse", starting_version], capture_output=True, check=True)
+        result.check_returncode()
+    except CalledProcessError:
+        # Couldn't find the starting version, so instead get the initial repo commit
+        starting_version = run(
+            ["git", "rev-list", "--max-parents=0", "HEAD"],
+            capture_output=True,
+            text=True,
+        ).stdout[:7]
+
     log_lines = run(
         [
             "git",
@@ -255,7 +267,7 @@ def guess_change_type(lines: str) -> str:
 def bump(project_directory: Path, version_part: str = None, dry_run: bool = True):
     project = Project(project_directory)
     old_version = project.get_version()
-    commit_messages = get_commit_messages(old_version)
+    commit_messages = get_commit_messages(f"v{old_version}")
 
     if not version_part:
         version_part = guess_change_type(commit_messages)
@@ -274,7 +286,7 @@ def bump(project_directory: Path, version_part: str = None, dry_run: bool = True
         notes = project.extract_changelog_notes()
         # If empty, use the commit messages
         if not notes:
-            notes = commit_messages
+            notes = "\n - ".join(["", *commit_messages])
 
         create_github_release(version, notes)
 
@@ -282,8 +294,8 @@ def bump(project_directory: Path, version_part: str = None, dry_run: bool = True
         notes = project.extract_changelog_notes()
         # If empty, use the commit messages
         if not notes:
-            notes = commit_messages
-        print(f"Changelog notes: \n {notes}")
+            notes = "\n - ".join(["", *commit_messages])
+        print(f"Changelog notes: \n{notes}")
 
 
 def cli():
@@ -295,15 +307,15 @@ def cli():
         help="The type of semver release to make.",
         choices={"major", "minor", "patch"},
     )
-    parser.add_argument("--project-dir", "-d", nargs="?", default=Path("."))
+    parser.add_argument("--project-directory", "-d", nargs="?", default=Path("."))
     parser.add_argument(
-        "--dryrun",
+        "--dry-run",
         dest="dry_run",
         action="store_true",
         help="Don't make any changes, just print out what would happen",
     )
     args = parser.parse_args()
-    bump(args.project_directory, args.version_part, args.dry_run)
+    bump(args.project_directory, args.version, args.dry_run)
 
 
 if __name__ == "__main__":
