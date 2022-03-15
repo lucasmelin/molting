@@ -1,0 +1,61 @@
+# This workflow runs on every push request or a pull request to main.
+# The following tests are performed:
+# - unit tests
+# - linting tools
+# - dependency safety checks
+
+name: CI - nox sessions
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.9]
+        poetry-version: [1.1.11]
+        os: [ubuntu-20.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Install and configure poetry
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+          version: ${{ matrix.poetry-version }}
+
+      # Load cached venv if cache exists
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v2
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      # Install dependencies if cache does not exist
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction
+
+      - name: Setup flake8 annotations
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: rbialon/flake8-annotations@v1
+
+      - name: Run unit tests
+        run: poetry run nox -s tests
+
+      - name: Run linting tests
+        run: poetry run nox -s lint
+
+      - name: Run safety tests
+        run: poetry run nox -s safety

@@ -1,66 +1,105 @@
-import nox
-import argparse
+"""Nox sessions."""
+import tempfile
 from pathlib import Path
-from molting.main import (
-    Project,
-    get_commit_messages,
-    guess_change_type,
-    increase_version_number,
-)
+
+import nox
+
+package = "molting"
+nox.options.sessions = "lint", "safety", "tests"
+locations = "src", "tests", "noxfile.py"
+
+
+def install_with_constraints(session, *args, **kwargs):
+    """Install packages constrained by Poetry's lock file."""
+    requirements = tempfile.NamedTemporaryFile(delete=False)
+    try:
+        session.run(
+            "poetry",
+            "export",
+            "--dev",
+            "--without-hashes",
+            "--format=requirements.txt",
+            f"--output={requirements.name}",
+            external=True,
+        )
+        session.install(f"--constraint={requirements.name}", *args, **kwargs)
+    finally:
+        requirements.close()
+        Path(requirements.name).unlink()
 
 
 @nox.session
-def release(session: nox.Session) -> None:
-    """
-    Kicks off an automated release process by creating and pushing a new tag.
+def black(session):
+    """Run black code formatter."""
+    args = session.posargs or locations
+    install_with_constraints(session, "black")
+    session.run("black", *args)
 
-    Usage:
-    $ nox -s release -- [major|minor|patch]
-    """
-    parser = argparse.ArgumentParser(description="Release a semver version.")
-    parser.add_argument(
-        "version",
-        type=str,
-        nargs="?",
-        help="The type of semver release to make.",
-        choices={"major", "minor", "patch"},
+
+@nox.session
+def docs(session):
+    """Build the documentation."""
+    install_with_constraints(session, "mkdocs-material", "mkdocstrings")
+    session.run("mkdocs", "build")
+
+
+@nox.session
+def lint(session):
+    """Lint using flake8."""
+    args = session.posargs or locations
+    install_with_constraints(
+        session,
+        "isort",
+        "flake8",
+        "flake8-bandit",
+        "flake8-black",
+        "flake8-bugbear",
+        "flake8-comprehensions",
+        "flake8-docstrings",
+        "flake8-import-order",
     )
-    args: argparse.Namespace = parser.parse_args(args=session.posargs)
+    session.run("isort", "--check", "--diff", "--profile", "black", *args)
+    session.run("flake8", *args)
 
-    project = Project(".")
-    old_version = project.get_version()
 
-    if args.version:
-        version_part: str = args.version.pop()
-    else:
-        commit_messages = get_commit_messages(old_version)
-        version_part = guess_change_type(commit_messages)
+@nox.session
+def publish_docs(session):
+    """Publish the documentation to GitHub Pages."""
+    install_with_constraints(session, "mkdocs-material", "mkdocstrings")
+    session.run("mkdocs", "gh-deploy")
 
-    # If we get here, we should be good to go
-    # Let's do a final check for safety
-    confirm = input(
-        f"You are about to bump the {version_part!r} version. Are you sure? [y/n]: "
-    )
 
-    # Abort on anything other than 'y'
-    if confirm.lower().strip() != "y":
-        session.error(
-            f"You said no when prompted to bump the {version_part!r} version."
+@nox.session
+def safety(session):
+    """Scan dependencies for insecure packages."""
+    requirements = tempfile.NamedTemporaryFile(delete=False)
+    try:
+        session.run(
+            "poetry",
+            "export",
+            "--dev",
+            "--without-hashes",
+            "--format=requirements.txt",
+            f"--output={requirements.name}",
+            external=True,
         )
+        install_with_constraints(session, "safety")
+        session.run("safety", "check", f"--file={requirements.name}", "--full-report")
+    finally:
+        requirements.close()
+        Path(requirements.name).unlink()
 
-    session.log(f"Bumping the {version_part!r} version")
 
-    version = increase_version_number(old_version, version_part)
-
-    project.update_changelog(old_version, version)
-    project.update_pyproject(version)
-    project.update_init(version)
-    session.log(f"Bumped files from {old_version!r} to {version!r}")
-    session.log("Pushing the new tag")
-    # create_tag(version)
-    notes = project.extract_changelog_notes()
-    # If empty, try the commit messages
-    if not notes:
-        notes = get_commit_messages(old_version)
-
-    # create_github_release(version, notes)
+@nox.session
+def tests(session):
+    """Run the test suite."""
+    args = session.posargs or ["--cov"]
+    session.run("poetry", "install", "--no-dev", external=True)
+    install_with_constraints(
+        session,
+        "coverage[toml]",
+        "pytest",
+        "pytest-cov",
+        "pytest-mock",
+    )
+    session.run("pytest", *args)

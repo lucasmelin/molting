@@ -1,8 +1,9 @@
+"""molting main."""
+import argparse
 import re
 from datetime import datetime
 from pathlib import Path
 from subprocess import CalledProcessError, run
-import argparse
 
 RE_REPOSITORY = re.compile(r'^repository = "(?P<repository>.*)"$', re.MULTILINE)
 RE_PYPROJECT_VERSION = re.compile(r'version = "(?P<version>\d+\.\d+(\.\d+)?)"')
@@ -11,9 +12,12 @@ RE_LINK = re.compile(r"^\[(.*)\]: (.*)$")
 
 
 class Project:
+    """Data and methods for a project."""
+
     project_directory: Path
 
     def __init__(self, project_directory: Path) -> None:
+        """Initialize Project."""
         self.project_directory = Path(project_directory)
 
     def get_repository(self) -> str:
@@ -36,7 +40,7 @@ class Project:
         return repository
 
     def get_version(self) -> str:
-        """Parses project version from `pyproject.toml`
+        """Parses project version from `pyproject.toml`.
 
         Returns:
             str: Current project version
@@ -99,7 +103,8 @@ class Project:
                 "\n".join(
                     [
                         f"[Latest Changes]: {repository}compare/v{version_number}...HEAD",
-                        f"[{version_number}]: {repository}compare/v{old_version_number}...v{version_number}",
+                        f"[{version_number}]: "
+                        f"{repository}compare/v{old_version_number}...v{version_number}",
                     ]
                 ),
                 file_text,
@@ -147,7 +152,7 @@ class Project:
         return "\n".join(latest_changes)
 
     def add_changelog_notes(self, notes: str):
-        """Add notes to the `Latest Changes` section in CHANGELOG.md
+        """Add notes to the `Latest Changes` section in `CHANGELOG.md`.
 
         Args:
             notes (str): Notes to add
