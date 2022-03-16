@@ -1,6 +1,6 @@
 import pytest
 
-from molting.main import increase_version_number
+from molting.main import Project, increase_version_number
 
 
 @pytest.mark.parametrize(
@@ -28,3 +28,23 @@ def test_increase_minor(old_version, expected_version):
 def test_increase_major(old_version, expected_version):
     version = increase_version_number(old_version, "major")
     assert version == expected_version
+
+
+def test_update_init_double_quotes(tmp_path):
+    d = tmp_path / "src" / "project"
+    d.mkdir(parents=True)
+    init = d / "__init__.py"
+    init.write_text('__version__ = "0.1.0"')
+    project = Project(tmp_path)
+    project.update_init("0.2.0")
+    assert init.read_text() == '__version__ = "0.2.0"'
+
+
+def test_update_init_single_quotes(tmp_path):
+    d = tmp_path / "src" / "project"
+    d.mkdir(parents=True)
+    init = d / "__init__.py"
+    init.write_text("__version__ = '0.1.0'")
+    project = Project(tmp_path)
+    project.update_init("0.2.0")
+    assert init.read_text() == '__version__ = "0.2.0"'

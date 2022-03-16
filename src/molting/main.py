@@ -7,9 +7,9 @@ from subprocess import CalledProcessError, run
 from loguru import logger
 import sys
 
-RE_REPOSITORY = re.compile(r'^repository = "(?P<repository>.*)"$', re.MULTILINE)
-RE_PYPROJECT_VERSION = re.compile(r'version = "(?P<version>\d+\.\d+(\.\d+)?)"')
-RE_INIT_VERSION = re.compile(r'__version__ = "(?P<version>\d+\.\d+(\.\d+)?)"')
+RE_REPOSITORY = re.compile(r'^repository = (["\'])(?P<repository>.*)(["\'])$', re.MULTILINE)
+RE_PYPROJECT_VERSION = re.compile(r'version = (["\'])(?P<version>\d+\.\d+(\.\d+)?)(["\'])')
+RE_INIT_VERSION = re.compile(r'__version__ = (["\'])(?P<version>\d+\.\d+(\.\d+)?)(["\'])')
 RE_LINK = re.compile(r"^\[(.*)\]: (.*)$")
 
 

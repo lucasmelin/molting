@@ -14,7 +14,11 @@ Syntax:
 
 ## [Latest Changes]
 
-- Add logging using [loguru](https://github.com/Delgan/loguru)
+### Added
+- Logging using [loguru](https://github.com/Delgan/loguru)
+
+### Fixed
+- Bug where versions inside single-quotes weren't being replaced.
 
 ## [0.2.0] - 2022-03-15
 
