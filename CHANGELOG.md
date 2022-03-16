@@ -14,6 +14,8 @@ Syntax:
 
 ## [Latest Changes]
 
+- Add logging using [loguru](https://github.com/Delgan/loguru)
+
 ## [0.2.0] - 2022-03-15
 
 - Initial project setup

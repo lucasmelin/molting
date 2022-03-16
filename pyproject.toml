@@ -20,6 +20,7 @@ molting = "molting.main:cli"
 
 [tool.poetry.dependencies]
 python = "^3.9"
+loguru = "^0.6.0"
 
 [tool.poetry.dev-dependencies]
 nox = "^2022.1.7"

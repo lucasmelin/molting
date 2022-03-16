@@ -4,6 +4,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 from subprocess import CalledProcessError, run
+from loguru import logger
+import sys
 
 RE_REPOSITORY = re.compile(r'^repository = "(?P<repository>.*)"$', re.MULTILINE)
 RE_PYPROJECT_VERSION = re.compile(r'version = "(?P<version>\d+\.\d+(\.\d+)?)"')
@@ -31,6 +33,7 @@ class Project:
             str: Full URL of the repository
         """
         pyproject = self.project_directory / "pyproject.toml"
+        logger.debug(f"Searching for `repository` in {pyproject.resolve()}")
         match = RE_REPOSITORY.search(pyproject.read_text())
         if not match:
             raise ValueError(f"Could not find repository in {pyproject}")
@@ -46,10 +49,13 @@ class Project:
             str: Current project version
         """
         pyproject = self.project_directory / "pyproject.toml"
+        logger.debug(f"Searching for `version` in {pyproject.resolve()}")
         match = RE_PYPROJECT_VERSION.search(pyproject.read_text())
         if not match:
             raise ValueError(f"Could not find version in {pyproject}")
-        return match.group("version")
+        version = match.group("version")
+        logger.debug(f"Found version {version!r} in pyproject.toml")
+        return version
 
     def update_pyproject(self, version_number: str):
         """Update the version found in `pyproject.toml`.
@@ -75,6 +81,7 @@ class Project:
         """
         init_files = self.project_directory.glob("**/__init__.py")
         for init in init_files:
+            logger.debug(f"Searching for `__version__` in {init.resolve()}")
             file_text = init.read_text()
             new_text = RE_INIT_VERSION.sub(
                 f'__version__ = "{version_number}"', file_text
@@ -98,6 +105,7 @@ class Project:
 
         # Update links at the bottom of the GHANGELOG
         if re.search(r"^\[Latest Changes\]:.*$", file_text, flags=re.MULTILINE):
+            logger.debug("Found [Latest Changes] section")
             file_text = re.sub(
                 r"^\[Latest Changes\]:.*$",
                 "\n".join(
@@ -111,6 +119,7 @@ class Project:
                 flags=re.MULTILINE,
             )
         else:
+            logger.debug("Didn't find [Latest Changes] section")
             file_text = "\n\n".join(
                 [
                     file_text,
@@ -130,6 +139,7 @@ class Project:
             str: Description of the changes
         """
         changelog = self.project_directory / "CHANGELOG.md"
+        logger.debug(f"Searching for changelog notes in {changelog}")
         file_text = changelog.read_text()
         file_lines = file_text.splitlines()
         index = [
@@ -158,6 +168,7 @@ class Project:
             notes (str): Notes to add
         """
         changelog = self.project_directory / "CHANGELOG.md"
+        logger.debug(f"Searching for changelog notes in {changelog}")
         file_text = changelog.read_text()
         file_text = file_text.replace(
             "## [Latest Changes]", f"## [Latest Changes]\n{notes}"
@@ -251,13 +262,16 @@ def get_commit_messages(starting_version: str, ending_version: str = "HEAD"):
             ["git", "rev-parse", starting_version], capture_output=True, check=True
         )
         result.check_returncode()
+        logger.debug(f"Found git ref for {starting_version!r}")
     except CalledProcessError:
+        logger.debug(f"Didn't find git ref {starting_version!r}")
         # Couldn't find the starting version, so instead get the initial repo commit
         starting_version = run(
             ["git", "rev-list", "--max-parents=0", "HEAD"],
             capture_output=True,
             text=True,
         ).stdout[:7]
+        logger.debug(f"Using git ref {starting_version!r} as starting point")
 
     log_lines = run(
         [
@@ -270,24 +284,30 @@ def get_commit_messages(starting_version: str, ending_version: str = "HEAD"):
         capture_output=True,
         text=True,
     ).stdout.splitlines()
-    return [line for line in log_lines if line.strip()]
+    non_empty_lines = [line for line in log_lines if line.strip()]
+    logger.debug(f"Found {len(non_empty_lines)} lines")
+    return non_empty_lines
 
 
 def guess_change_type(lines: str) -> str:
     """Guess the change type based on the commit message."""
     # Default to patch version
+    logger.debug("Attempting to guess change type")
     current_guess = "patch"
     minor_words = ["feat", "change", "improve"]
     for line in lines:
         # If breaking is found, immediately guess major without considering the
         # rest of the lines
         if "breaking" in line.lower():
+            logger.debug(f"Found `major` version keyword in {line}")
             return "major"
 
         # If we come across a minor version word, change our guess
         if any(minor_word in line.lower() for minor_word in minor_words):
+            logger.debug(f"Found `minor` version keyword in {line}")
             current_guess = "minor"
 
+    logger.debug(f"Guessing change is {current_guess!r}")
     # Will either be patch or minor at this point
     return current_guess
 
@@ -312,9 +332,10 @@ def bump(project_directory: Path, version_part: str = None, dry_run: bool = True
 
     version = increase_version_number(old_version, version_part)
 
-    print(f"Bumping the {version_part!r} version to {version!r}")
+    logger.info(f"Bumping the {version_part!r} version to {version!r}")
 
     notes = project.extract_changelog_notes()
+    logger.debug(f"Found {len(notes)} notes in CHANGELOG.md")
 
     if not dry_run:
         # If empty, use the commit messages
@@ -324,16 +345,17 @@ def bump(project_directory: Path, version_part: str = None, dry_run: bool = True
         project.update_changelog(old_version, version)
         project.update_pyproject(version)
         project.update_init(version)
-        print(f"Bumped files from {old_version!r} to {version!r}")
-        print("Pushing the new tag")
+        logger.debug(f"Bumped files from {old_version!r} to {version!r}")
+        logger.debug("Pushing the new tag")
         create_tag(version)
+        logger.debug("Creating GitHub release")
         create_github_release(version, notes)
 
     else:
         # If empty, use the commit messages
         if not notes:
             notes = "\n - ".join(["", *commit_messages])
-        print(f"Changelog notes: \n{notes}")
+        logger.debug(f"Changelog notes: \n{notes}")
 
 
 def cli():
@@ -353,7 +375,20 @@ def cli():
         action="store_true",
         help="Don't make any changes, just print out what would happen",
     )
+    parser.add_argument(
+        "-log",
+        "--log",
+        default="warning",
+        help=(
+            "Provide logging level. "
+            "Example --log debug', default='warning'"),
+        choices={"critical", "error", "warning", "success", "info", "debug", "trace"}
+    )
     args = parser.parse_args()
+    logger.remove()
+    log_level = "TRACE" if args.dry_run else args.log.upper()
+    logger.add(sys.stderr, level=log_level)
+    logger.debug(f"Args: {args}")
     bump(args.project_directory, args.version, args.dry_run)
 
 
