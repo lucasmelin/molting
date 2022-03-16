@@ -1,15 +1,22 @@
 """molting main."""
 import argparse
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
 from subprocess import CalledProcessError, run
-from loguru import logger
-import sys
 
-RE_REPOSITORY = re.compile(r'^repository = (["\'])(?P<repository>.*)(["\'])$', re.MULTILINE)
-RE_PYPROJECT_VERSION = re.compile(r'version = (["\'])(?P<version>\d+\.\d+(\.\d+)?)(["\'])')
-RE_INIT_VERSION = re.compile(r'__version__ = (["\'])(?P<version>\d+\.\d+(\.\d+)?)(["\'])')
+from loguru import logger
+
+RE_REPOSITORY = re.compile(
+    r'^repository = (["\'])(?P<repository>.*)(["\'])$', re.MULTILINE
+)
+RE_PYPROJECT_VERSION = re.compile(
+    r'version = (["\'])(?P<version>\d+\.\d+(\.\d+)?)(["\'])'
+)
+RE_INIT_VERSION = re.compile(
+    r'__version__ = (["\'])(?P<version>\d+\.\d+(\.\d+)?)(["\'])'
+)
 RE_LINK = re.compile(r"^\[(.*)\]: (.*)$")
 
 
@@ -379,10 +386,8 @@ def cli():
         "-log",
         "--log",
         default="warning",
-        help=(
-            "Provide logging level. "
-            "Example --log debug', default='warning'"),
-        choices={"critical", "error", "warning", "success", "info", "debug", "trace"}
+        help=("Provide logging level. " "Example --log debug', default='warning'"),
+        choices={"critical", "error", "warning", "success", "info", "debug", "trace"},
     )
     args = parser.parse_args()
     logger.remove()
