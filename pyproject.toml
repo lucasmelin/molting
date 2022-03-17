@@ -19,7 +19,7 @@ classifiers = [
 molting = "molting.main:cli"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.8"
 loguru = "^0.6.0"
 
 [tool.poetry.dev-dependencies]

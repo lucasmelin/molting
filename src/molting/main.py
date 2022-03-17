@@ -112,17 +112,15 @@ class Project:
         else:
             pyproject.write_text(new_text)
 
-    def update_init(
-        self,
-        version_number: str,
-        project_name: str
-    ):
+    def update_init(self, version_number: str, project_name: str):
         """Update the version found in `__init__.py`.
 
         Will not add a version string if one doesn't already exist in the file.
 
         Args:
             version_number (str): New version number
+            project_name (str): Name of the python project containing __init__
+              files
         """
         init_files = self.project_directory.glob(f"src/{project_name}/**/__init__.py")
         for init in init_files:

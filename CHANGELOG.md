@@ -18,6 +18,8 @@ Syntax:
 
 - Improved how `--dry-run` is handled, as well as the log output
 - Pass project name as a parameter to `update_init`
+- Set minimum python version to 3.8
+- Add python 3.8 and 3.10 to the ci workflow testing matrix
 
 ### Fixed
 
