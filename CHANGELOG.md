@@ -14,6 +14,8 @@ Syntax:
 
 ## [Latest Changes]
 
+## [0.3.1] - 2022-03-17
+
 ### Changed
 
 - Improved how `--dry-run` is handled, as well as the log output
@@ -44,6 +46,7 @@ Syntax:
 - Initial project setup
 
 
-[Latest Changes]: https://github.com/lucasmelin/molting/compare/v0.3.0...HEAD
+[Latest Changes]: https://github.com/lucasmelin/molting/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/lucasmelin/molting/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/lucasmelin/molting/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/lucasmelin/molting/compare/v0.2.0...v0.2.1
