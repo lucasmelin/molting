@@ -17,6 +17,7 @@ Syntax:
 ### Changed
 
 - Improved how `--dry-run` is handled, as well as the log output
+- Pass project name as a parameter to `update_init`
 
 ### Fixed
 

@@ -115,6 +115,7 @@ class Project:
     def update_init(
         self,
         version_number: str,
+        project_name: str
     ):
         """Update the version found in `__init__.py`.
 
@@ -123,7 +124,6 @@ class Project:
         Args:
             version_number (str): New version number
         """
-        project_name = self.get_name()
         init_files = self.project_directory.glob(f"src/{project_name}/**/__init__.py")
         for init in init_files:
             logger.debug(f"Searching for `__version__` in {init.resolve()}")
@@ -403,7 +403,8 @@ def bump(project_directory: Path, version_part: str = None, dry_run: bool = True
         project.add_changelog_notes(notes)
     project.update_changelog(old_version, version)
     project.update_pyproject(version)
-    project.update_init(version)
+    project_name = project.get_name()
+    project.update_init(version, project_name)
     logger.info(f"Bumped files from {old_version!r} to {version!r}")
     project.create_tag(version)
     project.create_github_release(version, notes)

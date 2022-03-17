@@ -31,20 +31,22 @@ def test_increase_major(old_version, expected_version):
 
 
 def test_update_init_double_quotes(tmp_path):
-    d = tmp_path / "src" / "project"
+    project_name = "project"
+    d = tmp_path / "src" / project_name
     d.mkdir(parents=True)
     init = d / "__init__.py"
     init.write_text('__version__ = "0.1.0"')
-    project = Project(tmp_path)
-    project.update_init("0.2.0")
+    project = Project(tmp_path, dry_run=False)
+    project.update_init("0.2.0", project_name)
     assert init.read_text() == '__version__ = "0.2.0"'
 
 
 def test_update_init_single_quotes(tmp_path):
-    d = tmp_path / "src" / "project"
+    project_name = "project"
+    d = tmp_path / "src" / project_name
     d.mkdir(parents=True)
     init = d / "__init__.py"
     init.write_text("__version__ = '0.1.0'")
-    project = Project(tmp_path)
-    project.update_init("0.2.0")
+    project = Project(tmp_path, dry_run=False)
+    project.update_init("0.2.0", project_name)
     assert init.read_text() == '__version__ = "0.2.0"'
