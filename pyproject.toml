@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "molting"
-version = "0.2.0"
+version = "0.3.0"
 description = "Automatically bump your project files to the latest version."
 authors = ["Lucas Melin <lucas.melin@gmail.com>"]
 repository = "https://github.com/lucasmelin/molting"
