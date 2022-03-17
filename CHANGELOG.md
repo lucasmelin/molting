@@ -14,6 +14,14 @@ Syntax:
 
 ## [Latest Changes]
 
+### Changed
+
+- Improved how `--dry-run` is handled, as well as the log output
+
+### Fixed
+
+- Tightened glob parameters when searching for `__init__.py` files, so that only project-related files are returned
+
 ## [0.3.0] - 2022-03-16
 
 ### Added

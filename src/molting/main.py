@@ -3,6 +3,7 @@ import argparse
 import re
 import sys
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from subprocess import CalledProcessError, run
 
@@ -17,17 +18,29 @@ RE_PYPROJECT_VERSION = re.compile(
 RE_INIT_VERSION = re.compile(
     r'__version__ = (["\'])(?P<version>\d+\.\d+(\.\d+)?)(["\'])'
 )
+RE_NAME = re.compile(r'^name = (["\'])(?P<name>.*)(["\'])$', re.MULTILINE)
 RE_LINK = re.compile(r"^\[(.*)\]: (.*)$")
+
+
+def combine_items(items, callable):
+    """Combine a list of strings, and then pass them into a provided function.
+
+    Useful for logging a list of strings as a single command.
+    """
+    args = " ".join(items)
+    return callable(args)
 
 
 class Project:
     """Data and methods for a project."""
 
     project_directory: Path
+    dry_run: bool
 
-    def __init__(self, project_directory: Path) -> None:
+    def __init__(self, project_directory: Path, dry_run: bool) -> None:
         """Initialize Project."""
         self.project_directory = Path(project_directory)
+        self.dry_run = dry_run
 
     def get_repository(self) -> str:
         """Returns the repository URL.
@@ -47,7 +60,27 @@ class Project:
         repository = match.group("repository")
         if not repository.endswith("/"):
             repository = f"{repository}/"
+        logger.debug(f"Found repository {repository!r} in pyproject.toml")
         return repository
+
+    def get_name(self) -> str:
+        """Returns the project name.
+
+        Raises:
+            ValueError: The name section in `pyproject.toml`
+            couldn't be parsed.
+
+        Returns:
+            str: Name of the project
+        """
+        pyproject = self.project_directory / "pyproject.toml"
+        logger.debug(f"Searching for `name` in {pyproject.resolve()}")
+        match = RE_NAME.search(pyproject.read_text())
+        if not match:
+            raise ValueError(f"Could not find name in {pyproject}")
+        name = match.group("name")
+        logger.debug(f"Found name {name!r} in pyproject.toml")
+        return name
 
     def get_version(self) -> str:
         """Parses project version from `pyproject.toml`.
@@ -73,7 +106,11 @@ class Project:
         pyproject = self.project_directory / "pyproject.toml"
         file_text = pyproject.read_text()
         new_text = RE_PYPROJECT_VERSION.sub(f'version = "{version_number}"', file_text)
-        pyproject.write_text(new_text)
+        logger.debug("Writing pyproject.toml changes")
+        if self.dry_run:
+            logger.trace(new_text)
+        else:
+            pyproject.write_text(new_text)
 
     def update_init(
         self,
@@ -86,14 +123,19 @@ class Project:
         Args:
             version_number (str): New version number
         """
-        init_files = self.project_directory.glob("**/__init__.py")
+        project_name = self.get_name()
+        init_files = self.project_directory.glob(f"src/{project_name}/**/__init__.py")
         for init in init_files:
             logger.debug(f"Searching for `__version__` in {init.resolve()}")
             file_text = init.read_text()
             new_text = RE_INIT_VERSION.sub(
                 f'__version__ = "{version_number}"', file_text
             )
-            init.write_text(new_text)
+            logger.debug("Writing __init__.py changes")
+            if self.dry_run:
+                logger.trace(new_text)
+            else:
+                init.write_text(new_text)
 
     def update_changelog(self, old_version_number: str, version_number: str):
         """Update `CHANGELOG.md` for the new version.
@@ -133,11 +175,14 @@ class Project:
                     f"[Latest Changes]: {repository}compare/v{version_number}...HEAD",
                 ]
             )
-
-        changelog.write_text(file_text)
+        logger.debug(f"Moving change notes from [Latest Changes] to v{version_number}")
+        if self.dry_run:
+            logger.trace(file_text)
+        else:
+            changelog.write_text(file_text)
 
     def extract_changelog_notes(self):
-        """Parse the CHANGELOG.md and retun the latest unreleased changes.
+        """Parse the CHANGELOG.md and return the latest unreleased changes.
 
         Args:
             project_directory (Path): Path to the current project
@@ -166,7 +211,10 @@ class Project:
                 pass
             else:
                 latest_changes.append(line)
-        return "\n".join(latest_changes)
+        notes = "\n".join(latest_changes)
+        line_count = notes.count("\n") + 1 if notes else 0
+        logger.debug(f"Found {line_count} notes in CHANGELOG.md")
+        return notes
 
     def add_changelog_notes(self, notes: str):
         """Add notes to the `Latest Changes` section in `CHANGELOG.md`.
@@ -175,12 +223,102 @@ class Project:
             notes (str): Notes to add
         """
         changelog = self.project_directory / "CHANGELOG.md"
-        logger.debug(f"Searching for changelog notes in {changelog}")
+        logger.debug(f"Adding to [Latest Changes] section in {changelog}")
         file_text = changelog.read_text()
         file_text = file_text.replace(
             "## [Latest Changes]", f"## [Latest Changes]\n{notes}"
         )
-        changelog.write_text(file_text)
+        if self.dry_run:
+            logger.trace(file_text)
+        else:
+            changelog.write_text(file_text)
+
+    def create_tag(self, version: str):
+        """Create a tag for the specified version.
+
+        Depends on `git`.
+
+        Args:
+            version (str): Version number to use for the tag
+        """
+        logger.info(f"Creating git tag for {version!r}")
+        if self.dry_run:
+            run_command = partial(combine_items, callable=logger.debug)
+        else:
+            run_command = partial(run, text=True, cwd=self.project_directory)
+        run_command(["git", "add", "."])
+        run_command(["git", "commit", "-m", f"Bump version to v{version}"])
+        run_command(["git", "tag", f"v{version}"])
+        run_command(["git", "push"])
+        run_command(["git", "push", "--tags"])
+
+    def create_github_release(self, version: str, notes: str):
+        """Create a new GitHub release.
+
+        Depends on the GitHub CLI.
+
+        Args:
+            version (str): Version tag to release. If a matching git tag does not
+            exist yet, one will automatically be created.
+            notes (str): Release notes.
+        """
+        logger.info(f"Creating GitHub release for {version!r}")
+        if self.dry_run:
+            run_command = partial(combine_items, callable=logger.debug)
+        else:
+            run_command = partial(run, text=True, cwd=self.project_directory)
+        run_command(
+            [
+                "gh",
+                "release",
+                "create",
+                f"v{version}",
+                "--title",
+                f"v{version}",
+                "--notes",
+                notes,
+            ]
+        )
+
+
+def get_commit_messages(starting_version: str, ending_version: str = "HEAD"):
+    """Get the commit messages from the current git branch.
+
+    Depends on `git`.
+
+    Args:
+        starting_version (str): Starting version number, not included in the results
+        ending_version (str): Ending version number, defaults to HEAD
+
+    Returns:
+        list: List of commit message lines
+    """
+    run_command = partial(run, capture_output=True, text=True)
+    try:
+        # If this executes successfully, then the version exists locally
+        result = run_command(["git", "rev-parse", starting_version], check=True)
+        result.check_returncode()
+        logger.debug(f"Found git ref for {starting_version!r}")
+    except CalledProcessError:
+        logger.debug(f"Didn't find git ref {starting_version!r}")
+        # Couldn't find the starting version, so instead get the initial repo commit
+        starting_version = run_command(
+            ["git", "rev-list", "--max-parents=0", "HEAD"],
+        ).stdout[:7]
+        logger.debug(f"Using git ref {starting_version!r} as starting point")
+
+    log_lines = run_command(
+        [
+            "git",
+            "--no-pager",
+            "log",
+            "--format=%B",
+            f"{starting_version}...{ending_version}",
+        ],
+    ).stdout.splitlines()
+    non_empty_lines = [line for line in log_lines if line.strip()]
+    logger.debug(f"Found {len(non_empty_lines)} lines")
+    return non_empty_lines
 
 
 def increase_version_number(version_number: str, version_part: str) -> str:
@@ -209,91 +347,6 @@ def increase_version_number(version_number: str, version_part: str) -> str:
         version_split[2] = 0
 
     return ".".join(map(str, version_split))
-
-
-def create_tag(version: str):
-    """Create a tag for the specified version.
-
-    Depends on `git`.
-
-    Args:
-        version (str): Version number to use for the tag
-    """
-    run(["git", "add", "."], text=True)
-    run(["git", "commit", "-m", f"Bump version to v{version}"], text=True)
-    run(["git", "tag", f"v{version}"], text=True)
-    run(["git", "push"], text=True)
-    run(["git", "push", "--tags"], text=True)
-
-
-def create_github_release(version: str, notes: str):
-    """Create a new GitHub release.
-
-    Depends on the GitHub CLI.
-
-    Args:
-        version (str): Version tag to release. If a matching git tag does not
-        exist yet, one will automatically be created.
-        notes (str): Release notes.
-    """
-    run(
-        [
-            "gh",
-            "release",
-            "create",
-            f"v{version}",
-            "--title",
-            f"v{version}",
-            "--notes",
-            notes,
-        ],
-        text=True,
-    )
-
-
-def get_commit_messages(starting_version: str, ending_version: str = "HEAD"):
-    """Get the commit messages from the current git branch.
-
-    Depends on `git`.
-
-    Args:
-        starting_version (str): Starting version number, not included in the results
-        ending_version (str): Ending version number, defaults to HEAD
-
-    Returns:
-        list: List of commit message lines
-    """
-    try:
-        # If this executes successfully, then the version exists locally
-        result = run(
-            ["git", "rev-parse", starting_version], capture_output=True, check=True
-        )
-        result.check_returncode()
-        logger.debug(f"Found git ref for {starting_version!r}")
-    except CalledProcessError:
-        logger.debug(f"Didn't find git ref {starting_version!r}")
-        # Couldn't find the starting version, so instead get the initial repo commit
-        starting_version = run(
-            ["git", "rev-list", "--max-parents=0", "HEAD"],
-            capture_output=True,
-            text=True,
-        ).stdout[:7]
-        logger.debug(f"Using git ref {starting_version!r} as starting point")
-
-    log_lines = run(
-        [
-            "git",
-            "--no-pager",
-            "log",
-            "--format=%B",
-            f"{starting_version}...{ending_version}",
-        ],
-        capture_output=True,
-        text=True,
-    ).stdout.splitlines()
-    non_empty_lines = [line for line in log_lines if line.strip()]
-    logger.debug(f"Found {len(non_empty_lines)} lines")
-    return non_empty_lines
 
 
 def guess_change_type(lines: str) -> str:
@@ -330,7 +383,7 @@ def bump(project_directory: Path, version_part: str = None, dry_run: bool = True
         dry_run (bool, optional): Don't make any changes, just print out what
           would happen. Defaults to True.
     """
-    project = Project(project_directory)
+    project = Project(project_directory, dry_run)
     old_version = project.get_version()
     commit_messages = get_commit_messages(f"v{old_version}")
 
@@ -342,27 +395,18 @@ def bump(project_directory: Path, version_part: str = None, dry_run: bool = True
     logger.info(f"Bumping the {version_part!r} version to {version!r}")
 
     notes = project.extract_changelog_notes()
-    logger.debug(f"Found {len(notes)} notes in CHANGELOG.md")
 
-    if not dry_run:
-        # If empty, use the commit messages
-        if not notes:
-            notes = "\n - ".join(["", *commit_messages])
-            project.add_changelog_notes(notes)
-        project.update_changelog(old_version, version)
-        project.update_pyproject(version)
-        project.update_init(version)
-        logger.debug(f"Bumped files from {old_version!r} to {version!r}")
-        logger.debug("Pushing the new tag")
-        create_tag(version)
-        logger.debug("Creating GitHub release")
-        create_github_release(version, notes)
-
-    else:
-        # If empty, use the commit messages
-        if not notes:
-            notes = "\n - ".join(["", *commit_messages])
-        logger.debug(f"Changelog notes: \n{notes}")
+    # If empty, use the commit messages
+    if not notes:
+        logger.info("Using the commit messages as changelog notes")
+        notes = "\n - ".join(["", *commit_messages])
+        project.add_changelog_notes(notes)
+    project.update_changelog(old_version, version)
+    project.update_pyproject(version)
+    project.update_init(version)
+    logger.info(f"Bumped files from {old_version!r} to {version!r}")
+    project.create_tag(version)
+    project.create_github_release(version, notes)
 
 
 def cli():
