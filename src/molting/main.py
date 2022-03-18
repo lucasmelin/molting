@@ -6,6 +6,7 @@ from datetime import datetime
 from functools import partial
 from pathlib import Path
 from subprocess import CalledProcessError, run
+from typing import List
 
 from loguru import logger
 
@@ -196,11 +197,15 @@ class Project:
         file_text = changelog.read_text()
         file_lines = file_text.splitlines()
         changes_title = guess_title(file_lines)
-        index = [
-            idx
-            for idx, line in enumerate(file_lines)
-            if line.startswith(f"## [{changes_title}]")
-        ][0]
+        try:
+            index = [
+                idx
+                for idx, line in enumerate(file_lines)
+                if line.startswith(f"## [{changes_title}]")
+            ][0]
+        except IndexError:
+            logger.debug(f"Couldn't find any lines staring with ## [{changes_title}]")
+            return ""
         after_latest = file_lines[index + 1 :]
         latest_changes = []
         for line in after_latest:
@@ -231,7 +236,7 @@ class Project:
         logger.debug(f"Adding to [{changes_title}] section in {changelog}")
 
         file_text = file_text.replace(
-            f"## [{changes_title}]", f"## [{changes_title}]\n{notes}"
+            f"## [{changes_title}]", f"## [{changes_title}]\n\n{notes}"
         )
         if self.dry_run:
             logger.trace(file_text)
@@ -374,7 +379,7 @@ def increase_version_number(version_number: str, version_part: str) -> str:
     return ".".join(map(str, version_split))
 
 
-def guess_change_type(lines: str) -> str:
+def guess_change_type(lines: List[str]) -> str:
     """Guess the change type based on the commit message."""
     # Default to patch version
     logger.debug("Attempting to guess change type")
