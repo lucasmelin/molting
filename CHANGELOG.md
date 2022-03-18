@@ -14,6 +14,10 @@ Syntax:
 
 ## [Latest Changes]
 
+### Added
+
+- Support changelogs that used `Unreleased` instead of `Latest Changes`.
+
 ## [0.3.1] - 2022-03-17
 
 ### Changed

@@ -144,20 +144,23 @@ class Project:
         """
         changelog = self.project_directory / "CHANGELOG.md"
         file_text = changelog.read_text()
+        file_lines = file_text.splitlines()
+        changes_title = guess_title(file_lines)
         file_text = file_text.replace(
-            "## [Latest Changes]",
-            f"## [Latest Changes]\n\n## [{version_number}] - {datetime.now():%Y-%m-%d}",
+            f"## [{changes_title}]",
+            f"## [{changes_title}]\n\n## [{version_number}] - {datetime.now():%Y-%m-%d}",
         )
         repository = self.get_repository()
 
         # Update links at the bottom of the GHANGELOG
-        if re.search(r"^\[Latest Changes\]:.*$", file_text, flags=re.MULTILINE):
-            logger.debug("Found [Latest Changes] section")
+        if re.search(rf"^\[{changes_title}\]:.*$", file_text, flags=re.MULTILINE):
+            logger.debug(f"Found [{changes_title}] section")
             file_text = re.sub(
-                r"^\[Latest Changes\]:.*$",
+                rf"^\[{changes_title}\]:.*$",
                 "\n".join(
                     [
-                        f"[Latest Changes]: {repository}compare/v{version_number}...HEAD",
+                        f"[{changes_title}]: "
+                        f"{repository}compare/v{version_number}...HEAD",
                         f"[{version_number}]: "
                         f"{repository}compare/v{old_version_number}...v{version_number}",
                     ]
@@ -166,14 +169,14 @@ class Project:
                 flags=re.MULTILINE,
             )
         else:
-            logger.debug("Didn't find [Latest Changes] section")
+            logger.debug(f"Didn't find [{changes_title}] section")
             file_text = "\n\n".join(
                 [
                     file_text,
-                    f"[Latest Changes]: {repository}compare/v{version_number}...HEAD",
+                    f"[{changes_title}]: {repository}compare/v{version_number}...HEAD",
                 ]
             )
-        logger.debug(f"Moving change notes from [Latest Changes] to v{version_number}")
+        logger.debug(f"Moving change notes from [{changes_title}] to v{version_number}")
         if self.dry_run:
             logger.trace(file_text)
         else:
@@ -192,10 +195,11 @@ class Project:
         logger.debug(f"Searching for changelog notes in {changelog}")
         file_text = changelog.read_text()
         file_lines = file_text.splitlines()
+        changes_title = guess_title(file_lines)
         index = [
             idx
             for idx, line in enumerate(file_lines)
-            if line.startswith("## [Latest Changes]")
+            if line.startswith(f"## [{changes_title}]")
         ][0]
         after_latest = file_lines[index + 1 :]
         latest_changes = []
@@ -221,10 +225,13 @@ class Project:
             notes (str): Notes to add
         """
         changelog = self.project_directory / "CHANGELOG.md"
-        logger.debug(f"Adding to [Latest Changes] section in {changelog}")
         file_text = changelog.read_text()
+        file_lines = file_text.splitlines()
+        changes_title = guess_title(file_lines)
+        logger.debug(f"Adding to [{changes_title}] section in {changelog}")
+
         file_text = file_text.replace(
-            "## [Latest Changes]", f"## [Latest Changes]\n{notes}"
+            f"## [{changes_title}]", f"## [{changes_title}]\n{notes}"
         )
         if self.dry_run:
             logger.trace(file_text)
@@ -317,6 +324,26 @@ def get_commit_messages(starting_version: str, ending_version: str = "HEAD"):
     non_empty_lines = [line for line in log_lines if line.strip()]
     logger.debug(f"Found {len(non_empty_lines)} lines")
     return non_empty_lines
+
+
+def guess_title(notes) -> str:
+    """Guess the header title used for new changes in the changelog.
+
+    Args:
+        notes (List[str]): Changelog lines to search through for headers.
+
+    Returns:
+        str: Found title
+    """
+    logger.debug("Searching for new changes title")
+    titles = ["Unreleased", "Latest Changes"]
+    for title in titles:
+        search = f"## [{title}]"
+        if search in notes:
+            logger.debug(f"Found {search}")
+            return title
+        else:
+            logger.debug(f"Didn't find {search}")
 
 
 def increase_version_number(version_number: str, version_part: str) -> str:
