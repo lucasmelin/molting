@@ -31,7 +31,6 @@ Syntax:
 ### Fixed
 
 - Tightened glob parameters when searching for `__init__.py` files, so that only project-related files are returned
-- Setup `pre-commit` configuration for developers.
 
 ## [0.3.0] - 2022-03-16
 
