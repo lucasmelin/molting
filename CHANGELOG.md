@@ -17,6 +17,7 @@ Syntax:
 ### Added
 
 - Support changelogs that used `Unreleased` instead of `Latest Changes`.
+- `pre-commit` configuration for development.
 
 ## [0.3.1] - 2022-03-17
 
@@ -30,6 +31,7 @@ Syntax:
 ### Fixed
 
 - Tightened glob parameters when searching for `__init__.py` files, so that only project-related files are returned
+- Setup `pre-commit` configuration for developers.
 
 ## [0.3.0] - 2022-03-16
 
