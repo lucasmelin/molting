@@ -1,12 +1,18 @@
-# 🐍🐍 molting
-
+<h1 align="center"> Molting 🐍🐍 </h1>
+<p align="center">
+<a href="https://pypi.org/project/molting/">
+<img alt="PyPI" src="https://img.shields.io/pypi/v/molting?color=%2316a34a&style=for-the-badge">
+</a>
+<a href="https://pypi.org/project/molting/">
+<img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/molting?color=%2316a34a&style=for-the-badge">
+</a><br>
+<a href="https://pypi.org/project/molting/">
+<img alt="CI - nox sessions" src="https://img.shields.io/github/actions/workflow/status/lucasmelin/molting/ci.yaml?label=CI%20-%20nox%20sessions&color=%2316a34a&style=for-the-badge">
+</a>
+</p>
+<p align="center">
 Automatically bump your project files to the latest version.
-
-![PyPI](https://img.shields.io/pypi/v/molting?color=%2316a34a)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/molting?color=%230fb882)
-[![CI - nox sessions](https://github.com/lucasmelin/molting/actions/workflows/ci.yaml/badge.svg)](https://github.com/lucasmelin/molting/actions/workflows/ci.yaml)
-
----
+</p>
 
 ## Overview
 
@@ -21,7 +27,7 @@ Simplifies the process of creating new releases by bumping version numbers, upda
 graph TD
     A[Invoke molting CLI] -->|Specify semver type| B(Calculate new version)
     A -->|Omit semver type| C(Get commit messages)
-    C --> D[Guess change type]
+    C --> D[Predict change type]
     D --> B
     B --> G(Get changelog notes)
     G -->|Changelog notes found| E(Update version in files)
